@@ -21,7 +21,7 @@ hints = {
     "background": f"""
 You're an expert in {FIELD}. The user
 is seeking progress in this field, and thus has subscribed several rss
-CATEROGIES for latest papers. Now you're assigned the task to
+CATEGORIES for latest papers. Now you're assigned the task to
 take a look at the papers from a recent update.
 Note that the papers are from different categories, but all categories
 come together to serve as inspirations for the central topic of {FIELD}.
@@ -47,11 +47,11 @@ Answer with a single number(rating) and don't say anything else.
 
     "summary": f"""
 Here are some best papers selected from the recent batch of papers, each
-seperated by "(seperation of article)".
+separated by "(separation of article)".
 Now generate for me a easy-to-read "Summary of the latest {FIELD} Papers",
 in markdown format.
 The summary should:
-1. Conclude, in your own words, the main works seperately for each CATEGORY;
+1. Conclude, in your own words, the main works separately for each CATEGORY;
 2. Look at all categories, and make a discussion at the level of
    the whole {FIELD} field;
 3. Recommend a few great work for me(give me the paper title), best involving

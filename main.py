@@ -52,38 +52,43 @@ def run():
                 nonlocal contents
                 contents += f"{content}\nRating: {rating}"
 
-    with open('config/feeds.txt') as f:
-        feeds = [line.strip() for line in f
-                 if line.strip() and not line.startswith('#')]
+    if len(sys.argv) == 1:
+        with open('config/feeds.txt') as f:
+            feeds = [line.strip() for line in f
+                     if line.strip() and not line.startswith('#')]
 
-    ds = []
-    contents = ""
-    try:
-        for feed_url in feeds:
-            d = feedparser.parse(feed_url, agent=USER_AGENT)
-            if d.status == 200:
-                ds.append(d)
-            else:
-                print(f"请求失败: {feed_url} 状态码: {d.status}")
-    finally:
-        dedup.sync()
+        ds = []
+        contents = ""
+        try:
+            for feed_url in feeds:
+                d = feedparser.parse(feed_url, agent=USER_AGENT)
+                if d.status == 200:
+                    ds.append(d)
+                else:
+                    print(f"请求失败: {feed_url} 状态码: {d.status}")
+        finally:
+            dedup.sync()
 
-    nentries = sum([len(d.entries) for d in ds])
-    progress = 0
+        nentries = sum([len(d.entries) for d in ds])
+        progress = 0
 
-    for d in ds:
-        process_entries(d.entries, category=d.feed.title)
+        for d in ds:
+            process_entries(d.entries, category=d.feed.title)
 
-    print("Summarizing ...")
-
-    if not Path("best.txt").exists():
         save(outdir, "bests.txt", contents)
 
-    llm.restart(llm.hints["background"]+llm.hints["article_structure"])
-    with open("bests.txt", 'r') as f:
-        translated = llm.ask(llm.hints["summary"]+f.read(), model="deepseek-reasoner")
+    print("Summarizing ...")
+    if len(sys.argv) > 1:
+        outdir = "outputs/" + sys.argv[1].strip()
+        if not Path(outdir).exists():
+            print("Wrong feed directory to summary!")
+            exit(-1)
 
-    translated = llm.ask(llm.hints["translation"]+translated, model="deepseek-reasoner")
+    llm.restart(llm.hints["background"]+llm.hints["article_structure"])
+    with open(outdir+"/bests.txt", 'r') as f:
+        summary = llm.ask(llm.hints["summary"]+f.read(), model="deepseek-reasoner")
+
+    translated = llm.ask(llm.hints["translation"]+summary, model="deepseek-reasoner")
     save(outdir, "summary.md", translated)
 
 

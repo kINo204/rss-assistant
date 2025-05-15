@@ -1,0 +1,4 @@
+.env
+processed_items.txt
+/outputs
+/config

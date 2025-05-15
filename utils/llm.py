@@ -24,7 +24,7 @@ is seeking progress in this field, and thus has subscribed several rss
 CATEROGIES for latest papers. Now you're assigned the task to
 take a look at the papers from a recent update.
 Note that the papers are from different categories, but all categories
-come together to serve as inpirations for the central topic of {FIELD}.
+come together to serve as inspirations for the central topic of {FIELD}.
 """,
 
     "article_structure": """

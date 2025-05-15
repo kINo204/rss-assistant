@@ -1,4 +1,5 @@
-from openai import OpenAI
+from openai import OpenAI, AsyncOpenAI
+import asyncio
 
 import os
 import dotenv
@@ -6,7 +7,9 @@ dotenv.load_dotenv()
 API_KEY = os.getenv('API_KEY')
 FIELD = os.getenv('FIELD')
 
-client = OpenAI(api_key=API_KEY, base_url='https://api.deepseek.com')
+cli = OpenAI(api_key=API_KEY, base_url='https://api.deepseek.com')
+async_cli = AsyncOpenAI(api_key=API_KEY, base_url='https://api.deepseek.com')
+
 messages = [
     {
         "role": "system",
@@ -43,11 +46,12 @@ Answer with a single number(rating) and don't say anything else.
 """,
 
     "summary": f"""
-Here are some best papers selected from the recent batch of papers.
+Here are some best papers selected from the recent batch of papers, each
+seperated by "(seperation of article)".
 Now generate for me a easy-to-read "Summary of the latest {FIELD} Papers",
 in markdown format.
 The summary should:
-1. Conclude the main works seperately for each CATEGORY;
+1. Conclude, in your own words, the main works seperately for each CATEGORY;
 2. Look at all categories, and make a discussion at the level of
    the whole {FIELD} field;
 3. Recommend a few great work for me(give me the paper title), best involving
@@ -75,7 +79,20 @@ def restart(sys_hint: str):
 def ask(question: str, model="deepseek-chat") -> str:
     messages.append({"role": "user", "content": question})
 
-    response = client.chat.completions.create(
+    response = cli.chat.completions.create(
+        model=model,
+        messages=messages)
+    res_text = response.choices[0].message.content
+
+    messages.append({"role": "assistant", "content": res_text})
+
+    return res_text
+
+
+async def async_ask(question: str, model="deepseek-chat") -> str:
+    messages.append({"role": "user", "content": question})
+
+    response = await async_cli.chat.completions.create(
         model=model,
         messages=messages)
     res_text = response.choices[0].message.content

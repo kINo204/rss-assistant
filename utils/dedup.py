@@ -9,12 +9,12 @@ else:
     records = record_file.read_text().splitlines()
 
 
-def search(entry_id: str) -> bool:
-    return entry_id.strip() in records
+def search(entry) -> bool:
+    return entry.id.strip() in records
 
 
-def mark(entry_id: str):
-    records.append(entry_id.strip())
+def mark(entry):
+    records.append(entry.id.strip())
 
 
 def sync():

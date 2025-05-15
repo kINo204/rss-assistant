@@ -2,3 +2,4 @@
 processed_items.txt
 /outputs
 /config
+/utils/__pycache__

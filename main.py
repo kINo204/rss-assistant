@@ -3,94 +3,110 @@ import feedparser
 import datetime
 import sys
 from pathlib import Path
+import asyncio
 
 
 """ Init env variables """
-import os, dotenv
+import os
+import dotenv
 dotenv.load_dotenv()
 USER_AGENT = os.getenv('USER_AGENT')
 TIMEOUT = os.getenv('TIMEOUT')
 
 
-def run():
-    outdir = "outputs/" + \
-             f"{datetime.datetime.today().strftime("%Y-%m-%d#%H-%M")}"
+def save(directory, filename, content):
+    """ Save relative to `outdir`. """
+    directory = os.path.join(outdir, directory)
+    os.makedirs(directory, exist_ok=True)
+    filename = "".join([c if (c.isalnum() or c == '.')
+                        else "_" for c in filename])[:50]
+    filename = os.path.join(directory, filename)
+    with open(filename, 'w', encoding='utf-8') as f:
+        f.write(content)
 
-    def save(directory, filename, content):
-        os.makedirs(directory, exist_ok=True)
 
-        filename = "".join([c if (c.isalnum() or c == '.')
-                            else "_" for c in filename])[:50]
-        filepath = os.path.join(directory, filename)
-
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(content)
-
-    def process_entries(entries, category):
-        nonlocal progress
-        for entry in entries:
-            progress += 1
-            print(f"\rRunning ({progress}/{nentries}) ...", end="")
-            sys.stdout.flush()
-
-            if dedup.search(entry.id):
-                continue
-            dedup.mark(entry.id)
-
-            text = cleaner.clean_content(entry, min_length=600)
-            if not text:
-                continue
-
-            content = f"Category: {category}\nTitle: {entry.title}\n\n{text}"
-            feeddir = os.path.join(outdir, "feeds", category)
-
-            llm.restart(llm.hints["background"]+llm.hints["article_structure"])
-            rating = float(llm.ask(llm.hints["rating"]+content))
-            save(feeddir, entry.title, content)
-
-            if rating > 7.15:
-                nonlocal contents
-                contents += f"{content}\nRating: {rating}"
-
-    if len(sys.argv) == 1:
-        with open('config/feeds.txt') as f:
-            feeds = [line.strip() for line in f
+def feed():
+    with open('config/feeds.txt') as file_feeds:
+        feed_urls = [line.strip() for line in file_feeds
                      if line.strip() and not line.startswith('#')]
 
-        ds = []
-        contents = ""
-        try:
-            for feed_url in feeds:
-                d = feedparser.parse(feed_url, agent=USER_AGENT)
-                if d.status == 200:
-                    ds.append(d)
-                else:
-                    print(f"请求失败: {feed_url} 状态码: {d.status}")
-        finally:
-            dedup.sync()
+    feed_objs = []
+    for url in feed_urls:
+        print(f"fetching from: {url}")
+        o = feedparser.parse(url, agent=USER_AGENT)
+        feed_objs.append(o)
 
-        nentries = sum([len(d.entries) for d in ds])
-        progress = 0
+    # entries = [ [category, entry], [category, entry], ... ]
+    entries = [e for s in [
+        [[o.feed.title, e] for e in o.entries]
+        for o in feed_objs] for e in s]
+    updates = [e for e in entries if not dedup.search(e[1])]
+    if not updates:
+        print("Nothing new, you're up to date.")
+        exit(0)
 
-        for d in ds:
-            process_entries(d.entries, category=d.feed.title)
+    return updates
 
-        save(outdir, "bests.txt", contents)
 
-    print("Summarizing ...")
-    if len(sys.argv) > 1:
-        outdir = "outputs/" + sys.argv[1].strip()
-        if not Path(outdir).exists():
-            print("Wrong feed directory to summary!")
-            exit(-1)
+progress = 0
 
+
+def totxt(entry):
+    [category, entry] = entry
+    return f"""category: {category}
+    title: {entry.title}
+    content: {cleaner.clean_content(entry, min_length=800)}
+    """.lstrip()
+
+
+async def rate(entry, semaphore):
+    async with semaphore:
+        global progress
+        text = totxt(entry)
+        llm.restart(llm.hints["background"]+llm.hints["article_structure"])
+        rating = await llm.async_ask(llm.hints["rating"]+text)
+        progress += 1
+        print(f"\r({progress}/{total}) {entry[1].title[:50]} ...: {rating}",
+              end="")
+        if progress == total:
+            print("")
+        return float(rating)
+
+
+def summary(updates, ratings):
+    bests = [updates[i] for i in range(total)
+             if ratings[i] > 7.2]
+    best_text = '\n(separation of article)\n' \
+        .join([totxt(b) for b in bests])
     llm.restart(llm.hints["background"]+llm.hints["article_structure"])
-    with open(outdir+"/bests.txt", 'r') as f:
-        summary = llm.ask(llm.hints["summary"]+f.read(), model="deepseek-reasoner")
+    summary = llm.ask(llm.hints["summary"]+best_text,
+                      model="deepseek-reasoner")
+    translated = llm.ask(llm.hints["translation"]+summary)
+    save("", "summary.md", translated)
 
-    translated = llm.ask(llm.hints["translation"]+summary, model="deepseek-reasoner")
-    save(outdir, "summary.md", translated)
+
+async def main():
+    global outdir
+    outdir = os.path.join(
+        "outputs",
+        f"{datetime.datetime.today().strftime("%Y%m%d-%H-%M")}")
+
+    print("feeding ...")
+    updates = feed()
+    global total
+    total = len(updates)
+
+    print("rating ...")
+    sem = asyncio.Semaphore(3)
+    ratings = await asyncio.gather(*[rate(e, sem) for e in updates])
+
+    print("summarizing ...")
+    summary(updates, ratings)
+
+    for e in updates:
+        dedup.mark(e[1])
+    dedup.sync()
 
 
 if __name__ == "__main__":
-    run()
+    asyncio.run(main())

@@ -55,7 +55,7 @@ def totxt(entry):
     [category, entry] = entry
     return f"""category: {category}
     title: {entry.title}
-    content: {cleaner.clean_content(entry, min_length=800)}
+    content: {cleaner.clean_content(entry, min_length=200)}
     """.lstrip()
 
 
@@ -97,7 +97,7 @@ async def main():
     total = len(updates)
 
     print("rating ...")
-    sem = asyncio.Semaphore(3)
+    sem = asyncio.Semaphore(25)
     ratings = await asyncio.gather(*[rate(e, sem) for e in updates])
 
     print("summarizing ...")

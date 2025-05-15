@@ -2,6 +2,7 @@ from utils import cleaner, dedup, llm
 import feedparser
 import datetime
 import sys
+from pathlib import Path
 
 
 """ Init env variables """
@@ -29,7 +30,7 @@ def run():
         nonlocal progress
         for entry in entries:
             progress += 1
-            print(f"\rRunning ({progress}/{nentries}) ...")
+            print(f"\rRunning ({progress}/{nentries}) ...", end="")
             sys.stdout.flush()
 
             if dedup.search(entry.id):
@@ -74,10 +75,16 @@ def run():
         process_entries(d.entries, category=d.feed.title)
 
     print("Summarizing ...")
+
+    if not Path("best.txt").exists():
+        save(outdir, "bests.txt", contents)
+
     llm.restart(llm.hints["background"]+llm.hints["article_structure"])
-    summary = llm.ask(llm.hints["summary"]+contents, model="deepseek-reasoner")
-    summary = llm.ask(llm.hints["translation"]+summary, model="deepseek-reasoner")
-    save(outdir, "summary.md", summary)
+    with open("bests.txt", 'r') as f:
+        translated = llm.ask(llm.hints["summary"]+f.read(), model="deepseek-reasoner")
+
+    translated = llm.ask(llm.hints["translation"]+translated, model="deepseek-reasoner")
+    save(outdir, "summary.md", translated)
 
 
 if __name__ == "__main__":

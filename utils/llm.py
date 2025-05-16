@@ -20,7 +20,7 @@ messages = [
 hints = {
     "background": f"""
 You're an expert in {FIELD}. The user
-is seeking progress in this field, and thus has subscribed several rss
+is seeking progress in this field, and thus has subscribed several RSS
 CATEGORIES for latest papers. Now you're assigned the task to
 take a look at the papers from a recent update.
 Note that the papers are from different categories, but all categories
@@ -30,7 +30,7 @@ come together to serve as inspirations for the central topic of {FIELD}.
     "article_structure": """
 You'll be given the information of each paper in the following structure:
 <category> <title> <content>
-- <category> is the rss source where the paper is from.
+- <category> is the RSS source where the paper is from.
 - <title> is the title of the paper.
 - <content> is basically the abstract of the paper.
 """,
@@ -50,12 +50,10 @@ Here are some best papers selected from the recent batch of papers, each
 separated by "(separation of article)".
 Now generate for me a easy-to-read "Summary of the latest {FIELD} Papers",
 in markdown format.
-The summary should:
-1. Conclude, in your own words, the main works separately for each CATEGORY;
-2. Look at all categories, and make a discussion at the level of
-   the whole {FIELD} field;
-3. Recommend a few great work for me(give me the paper title), best involving
-   most categories.
+The goal is to help me, a new learner in this field who is not
+familiar with the domain knowledge, to get started and learn about it
+through these summaries on the RSS paper update every day, so design it wisely.
+Also, better link the paper title to its original website link.
 """,
 
     "translation": """
@@ -90,13 +88,15 @@ def ask(question: str, model="deepseek-chat") -> str:
 
 
 async def async_ask(question: str, model="deepseek-chat") -> str:
-    messages.append({"role": "user", "content": question})
+    q = {"role": "user", "content": question}
+    to_ask = [m for m in messages]
+    to_ask.append(q)
 
     response = await async_cli.chat.completions.create(
         model=model,
-        messages=messages)
+        messages=to_ask)
     res_text = response.choices[0].message.content
-
+    messages.append(q)
     messages.append({"role": "assistant", "content": res_text})
 
     return res_text

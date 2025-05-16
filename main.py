@@ -78,6 +78,7 @@ def summary(updates, ratings):
              if ratings[i] > 7.2]
     best_text = '\n(separation of article)\n' \
         .join([totxt(b) for b in bests])
+    save("", "bests.txt", best_text)
     llm.restart(llm.hints["background"]+llm.hints["article_structure"])
     summary = llm.ask(llm.hints["summary"]+best_text,
                       model="deepseek-reasoner")
@@ -96,8 +97,8 @@ async def main():
     global total
     total = len(updates)
 
-    print("rating ...")
-    sem = asyncio.Semaphore(25)
+    print(f"{total} feeds fetched, rating ...")
+    sem = asyncio.Semaphore(50)
     ratings = await asyncio.gather(*[rate(e, sem) for e in updates])
 
     print("summarizing ...")

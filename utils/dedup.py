@@ -18,6 +18,6 @@ def mark(entry):
 
 
 def sync():
-    with open(record_file, 'a') as f:
+    with open(record_file, 'w') as f:
         for r in records:
             f.write(f"{r}\n")

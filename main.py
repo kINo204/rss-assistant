@@ -41,10 +41,6 @@ def feed():
         [[o.feed.title, e] for e in o.entries]
         for o in feed_objs] for e in s]
     updates = [e for e in entries if not dedup.search(e[1])]
-    if not updates:
-        print("Nothing new, you're up to date.")
-        exit(0)
-
     return updates
 
 
@@ -94,6 +90,10 @@ async def main():
 
     print("feeding ...")
     updates = feed()
+    if not updates:
+        print("Nothing new, you're up to date.")
+        exit(0)
+
     global total
     total = len(updates)
 

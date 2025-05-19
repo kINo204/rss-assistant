@@ -16,7 +16,6 @@ TIMEOUT = os.getenv('TIMEOUT')
 
 def save(directory, filename, content):
     """ Save relative to `outdir`. """
-    directory = os.path.join(outdir, directory)
     os.makedirs(directory, exist_ok=True)
     filename = "".join([c if (c.isalnum() or c == '.')
                         else "_" for c in filename])[:50]
@@ -55,7 +54,7 @@ def totxt(entry):
     """.lstrip()
 
 
-async def rate(entry, semaphore):
+async def rate(total, entry, semaphore):
     async with semaphore:
         global progress
         text = totxt(entry)
@@ -69,40 +68,37 @@ async def rate(entry, semaphore):
         return float(rating)
 
 
-def summary(updates, ratings):
-    bests = [updates[i] for i in range(total)
-             if ratings[i] > 7.2]
-    best_text = '\n(separation of article)\n' \
-        .join([totxt(b) for b in bests])
-    save("", "bests.txt", best_text)
+def summary(best_text):
     llm.restart(llm.hints["background"]+llm.hints["article_structure"])
     summary = llm.ask(llm.hints["summary"]+best_text,
                       model="deepseek-reasoner")
     translated = llm.ask(llm.hints["translation"]+summary)
-    save("", "summary.md", translated)
+    return translated
 
 
 async def main():
-    global outdir
-    outdir = os.path.join(
-        "outputs",
-        f"{datetime.datetime.today().strftime("%Y%m%d-%H-%M")}")
+    time_stamp = f"{datetime.datetime.today().strftime("%Y%m%d-%H-%M")}"
+    outdir = os.path.join("outputs", time_stamp)
 
     print("feeding ...")
     updates = feed()
     if not updates:
         print("Nothing new, you're up to date.")
-        exit(0)
+        return
 
-    global total
     total = len(updates)
-
     print(f"{total} feeds fetched, rating ...")
     sem = asyncio.Semaphore(50)
-    ratings = await asyncio.gather(*[rate(e, sem) for e in updates])
+    ratings = await asyncio.gather(*[rate(total, e, sem) for e in updates])
+    bests = [updates[i] for i in range(total)
+             if ratings[i] > 7.2]
+    best_text = '\n(separation of article)\n\n' \
+        .join([totxt(b) for b in bests])
+    save(outdir, "bests.txt", best_text)
 
     print("summarizing ...")
-    summary(updates, ratings)
+    translated = summary(best_text)
+    save(outdir, "summary.md", translated)
 
     for e in updates:
         dedup.mark(e[1])

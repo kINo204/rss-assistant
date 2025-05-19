@@ -38,10 +38,10 @@ You'll be given the information of each paper in the following structure:
     "rating": f"""
 Now, given the article below, rate from 0-10 (float number allowed),
 with the following standard:
-- highly associated with, and be of fundamental/theoretical meaning
+- highly associated with, and of fundamental/theoretical meaning
   for the {FIELD} field?
 - solving important problems of the field?
-- create new methods, and not a summary of existing works?
+- creating new methods, and not a summary of existing works?
 Answer with a single number(rating) and don't say anything else.
 """,
 
